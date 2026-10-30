@@ -1,0 +1,10 @@
+services:
+  stock-market:
+    build:
+      context: .
+    image: stock-market:local
+    ports:
+      - "8000:8000"
+    environment:
+      DEFAULT_TICKER: ${DEFAULT_TICKER:-GOOGL}
+    restart: unless-stopped

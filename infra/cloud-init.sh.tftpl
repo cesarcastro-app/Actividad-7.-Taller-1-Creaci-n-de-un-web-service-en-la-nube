@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Prepara una instancia Ubuntu limpia. La imagen se despliega después mediante SSM.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get install --yes docker.io curl unzip
+systemctl enable --now docker
+usermod --append --groups docker ubuntu
+
+# AWS CLI v2 permite autenticar Docker contra el repositorio privado ECR.
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+curl --fail --silent --show-error \
+  "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
+  --output "$tmp_dir/awscliv2.zip"
+unzip -q "$tmp_dir/awscliv2.zip" -d "$tmp_dir"
+"$tmp_dir/aws/install" --update
+
+mkdir --parents /opt/stock-market
+cat >/etc/stock-market.env <<'EOF'
+AWS_REGION=${aws_region}
+EOF
+chmod 0644 /etc/stock-market.env
+
+# SSM Agent está incluido en la AMI oficial como paquete snap.
+systemctl enable --now snap.amazon-ssm-agent.amazon-ssm-agent.service || true
+touch /var/lib/stock-market-bootstrap-complete

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stock Market Service</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0 1rem; color: #172033; }
+      form { display: flex; gap: .75rem; flex-wrap: wrap; align-items: end; padding: 1rem; background: #eef3f8; border-radius: .5rem; }
+      label { display: grid; gap: .25rem; } input, button { padding: .55rem; } button { cursor: pointer; }
+      .error { color: #a40000; } .summary { display: flex; gap: 2rem; flex-wrap: wrap; }
+      table { border-collapse: collapse; width: 100%; margin-top: 1rem; font-size: .9rem; }
+      th, td { border-bottom: 1px solid #d9e0e8; padding: .5rem; text-align: right; }
+      th:first-child, td:first-child { text-align: left; }
+    </style>
+  </head>
+  <body>
+    <h1>Consulta del mercado bursátil</h1>
+    <p>Servicio educativo basado en Flask, yfinance y Docker.</p>
+    <form method="get">
+      <label>Símbolo <input name="ticker" value="{{ ticker }}" required maxlength="15"></label>
+      <label>Fecha inicial <input type="date" name="start" value="{{ start }}" required></label>
+      <label>Fecha final <input type="date" name="end" value="{{ end }}" required></label>
+      <button type="submit">Consultar</button>
+    </form>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    {% if result %}
+      <h2>{{ result.ticker }}</h2>
+      <div class="summary">
+        <p><strong>Registros:</strong> {{ result.summary.record_count }}</p>
+        <p><strong>Cierre promedio:</strong> {{ result.summary.average_close }}</p>
+        <p><strong>Último cierre:</strong> {{ result.summary.last_close }}</p>
+      </div>
+      <table>
+        <thead><tr><th>Fecha</th><th>Apertura</th><th>Máximo</th><th>Mínimo</th><th>Cierre</th><th>Volumen</th></tr></thead>
+        <tbody>
+          {% for row in result.records|reverse %}
+          <tr><td>{{ row.date }}</td><td>{{ row.open }}</td><td>{{ row.high }}</td><td>{{ row.low }}</td><td>{{ row.close }}</td><td>{{ row.volume }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </body>
+</html>
