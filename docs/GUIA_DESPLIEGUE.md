@@ -82,6 +82,12 @@ El script genera una etiqueta UTC, construye la imagen, inicia sesión en ECR me
 
 Las etiquetas de ECR son inmutables: no reutilice `v1.0.0`; publique `v1.0.1`.
 
+Si la imagen ya se publicó pero falló únicamente la actualización de EC2, reanude sin volver a subirla:
+
+```powershell
+.\scripts\deploy.ps1 -ImageTag 'v1.0.1' -SkipImagePush
+```
+
 Abra la URL reportada o recupérela después:
 
 ```powershell

@@ -9,6 +9,7 @@ Etiqueta inmutable. De forma predeterminada usa una marca de tiempo UTC.
 param(
     [string]$ImageTag = (Get-Date).ToUniversalTime().ToString('yyyyMMdd-HHmmss'),
     [string]$DefaultTicker = 'GOOGL',
+    [switch]$SkipImagePush,
     [string]$InfraDirectory = (Join-Path $PSScriptRoot '..\infra')
 )
 
@@ -34,17 +35,18 @@ if ($LASTEXITCODE -ne 0) { throw 'No fue posible leer las salidas de Terraform.'
 $registry = $repository.Split('/')[0]
 $imageUri = "${repository}:${ImageTag}"
 
-Write-Host "Construyendo $imageUri"
-# EC2 t3 usa amd64. Desactivar provenance evita que Docker Desktop publique un
-# índice OCI auxiliar que algunos repositorios ECR restringidos rechazan.
-docker build --pull --platform linux/amd64 --provenance=false --tag $imageUri (Join-Path $PSScriptRoot '..')
-if ($LASTEXITCODE -ne 0) { throw 'Falló la construcción de la imagen.' }
+if (-not $SkipImagePush) {
+    Write-Host "Construyendo $imageUri"
+    # EC2 t3 usa amd64. Desactivar provenance evita que Docker Desktop publique un
+    # índice OCI auxiliar que algunos repositorios ECR restringidos rechazan.
+    docker build --pull --platform linux/amd64 --provenance=false --tag $imageUri (Join-Path $PSScriptRoot '..')
+    if ($LASTEXITCODE -ne 0) { throw 'Falló la construcción de la imagen.' }
 
-Write-Host 'Autenticando Docker en Amazon ECR'
-$previousDockerConfig = $env:DOCKER_CONFIG
-$temporaryDockerConfig = Join-Path ([System.IO.Path]::GetTempPath()) "stock-market-docker-$([guid]::NewGuid())"
-New-Item -ItemType Directory -Path $temporaryDockerConfig | Out-Null
-try {
+    Write-Host 'Autenticando Docker en Amazon ECR'
+    $previousDockerConfig = $env:DOCKER_CONFIG
+    $temporaryDockerConfig = Join-Path ([System.IO.Path]::GetTempPath()) "stock-market-docker-$([guid]::NewGuid())"
+    New-Item -ItemType Directory -Path $temporaryDockerConfig | Out-Null
+    try {
     # Un almacén efímero evita depender del credential helper de Docker Desktop,
     # que puede fallar al guardar tokens ECR en algunas instalaciones de Windows.
     $env:DOCKER_CONFIG = $temporaryDockerConfig
@@ -71,15 +73,18 @@ try {
     )
     Write-Host 'Token temporal de ECR preparado'
 
-    docker push $imageUri
-    if ($LASTEXITCODE -ne 0) { throw 'Falló la publicación de la imagen.' }
-} finally {
-    if ($null -eq $previousDockerConfig) {
-        Remove-Item Env:DOCKER_CONFIG -ErrorAction SilentlyContinue
-    } else {
-        $env:DOCKER_CONFIG = $previousDockerConfig
+        docker push $imageUri
+        if ($LASTEXITCODE -ne 0) { throw 'Falló la publicación de la imagen.' }
+    } finally {
+        if ($null -eq $previousDockerConfig) {
+            Remove-Item Env:DOCKER_CONFIG -ErrorAction SilentlyContinue
+        } else {
+            $env:DOCKER_CONFIG = $previousDockerConfig
+        }
+        Remove-Item -LiteralPath $temporaryDockerConfig -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Remove-Item -LiteralPath $temporaryDockerConfig -Recurse -Force -ErrorAction SilentlyContinue
+} else {
+    Write-Host "Se omite la publicación; se desplegará la imagen existente $imageUri"
 }
 
 Write-Host 'Esperando a que EC2 aparezca en AWS Systems Manager'
@@ -99,7 +104,7 @@ if (-not $online) {
 
 # El documento JSON evita problemas de escape entre PowerShell, AWS CLI y Bash.
 $commands = @(
-    'set -euo pipefail',
+    'set -eu',
     "aws ecr get-login-password --region '$region' | docker login --username AWS --password-stdin '$registry'",
     "docker pull '$imageUri'",
     'docker rm --force stock-market 2>/dev/null || true',
