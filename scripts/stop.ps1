@@ -21,11 +21,16 @@ foreach ($tool in @('aws', 'terraform')) {
 
 $resolvedInfraDirectory = (Resolve-Path -LiteralPath $InfraDirectory).Path
 $terraformChdir = "-chdir=$resolvedInfraDirectory"
-$instanceId = terraform $terraformChdir output -raw instance_id
-$region = terraform $terraformChdir output -raw aws_region
-if ($LASTEXITCODE -ne 0 -or -not $instanceId -or -not $region) {
-    throw 'No fue posible obtener la instancia y la región desde Terraform.'
+$terraformOutputsJson = terraform $terraformChdir output -json
+if ($LASTEXITCODE -ne 0) {
+    throw 'No fue posible leer las salidas de Terraform.'
 }
+$terraformOutputs = $terraformOutputsJson | ConvertFrom-Json
+if (-not $terraformOutputs.instance_id.value -or -not $terraformOutputs.aws_region.value) {
+    throw 'Terraform no registra una infraestructura activa. Es posible que ya haya sido destruida.'
+}
+$instanceId = $terraformOutputs.instance_id.value
+$region = $terraformOutputs.aws_region.value
 
 function Get-InstanceState {
     $state = aws ec2 describe-instances `
