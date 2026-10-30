@@ -2,6 +2,8 @@
 
 Implementación académica del taller **Despliegue de Servicios de Red** para la asignatura *Computación Distribuida y Frameworks para Desarrollo de Aplicaciones Inteligentes*. Convierte una consulta bursátil de `yfinance` en un servicio web Flask contenerizado y automatiza su despliegue en AWS mediante Terraform, Amazon ECR y una instancia EC2 administrada con AWS Systems Manager.
 
+**Autor:** Cesar Castro
+
 ## Contenido
 
 | Ruta | Propósito |
