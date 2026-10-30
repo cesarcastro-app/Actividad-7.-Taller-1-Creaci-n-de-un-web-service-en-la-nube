@@ -35,7 +35,9 @@ $registry = $repository.Split('/')[0]
 $imageUri = "${repository}:${ImageTag}"
 
 Write-Host "Construyendo $imageUri"
-docker build --pull --tag $imageUri (Join-Path $PSScriptRoot '..')
+# EC2 t3 usa amd64. Desactivar provenance evita que Docker Desktop publique un
+# índice OCI auxiliar que algunos repositorios ECR restringidos rechazan.
+docker build --pull --platform linux/amd64 --provenance=false --tag $imageUri (Join-Path $PSScriptRoot '..')
 if ($LASTEXITCODE -ne 0) { throw 'Falló la construcción de la imagen.' }
 
 Write-Host 'Autenticando Docker en Amazon ECR'
