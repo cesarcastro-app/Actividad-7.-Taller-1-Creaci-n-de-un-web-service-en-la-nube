@@ -39,11 +39,46 @@ docker build --pull --tag $imageUri (Join-Path $PSScriptRoot '..')
 if ($LASTEXITCODE -ne 0) { throw 'Falló la construcción de la imagen.' }
 
 Write-Host 'Autenticando Docker en Amazon ECR'
-aws ecr get-login-password --region $region | docker login --username AWS --password-stdin $registry
-if ($LASTEXITCODE -ne 0) { throw 'Falló la autenticación en ECR.' }
+$previousDockerConfig = $env:DOCKER_CONFIG
+$temporaryDockerConfig = Join-Path ([System.IO.Path]::GetTempPath()) "stock-market-docker-$([guid]::NewGuid())"
+New-Item -ItemType Directory -Path $temporaryDockerConfig | Out-Null
+try {
+    # Un almacén efímero evita depender del credential helper de Docker Desktop,
+    # que puede fallar al guardar tokens ECR en algunas instalaciones de Windows.
+    $env:DOCKER_CONFIG = $temporaryDockerConfig
+    $ecrPassword = aws ecr get-login-password --region $region
+    if ($LASTEXITCODE -ne 0 -or -not $ecrPassword) {
+        throw 'AWS CLI no pudo obtener el token de autenticación de ECR.'
+    }
 
-docker push $imageUri
-if ($LASTEXITCODE -ne 0) { throw 'Falló la publicación de la imagen.' }
+    # Escribe el formato estándar de autenticación Docker directamente. El token
+    # solo vive en la carpeta temporal y se elimina en el bloque finally.
+    $credential = [Convert]::ToBase64String(
+        [Text.Encoding]::UTF8.GetBytes("AWS:$ecrPassword")
+    )
+    $dockerConfig = @{
+        auths = @{
+            $registry = @{ auth = $credential }
+        }
+    } | ConvertTo-Json -Depth 4
+    $dockerConfigPath = Join-Path $temporaryDockerConfig 'config.json'
+    [IO.File]::WriteAllText(
+        $dockerConfigPath,
+        $dockerConfig,
+        [Text.UTF8Encoding]::new($false)
+    )
+    Write-Host 'Token temporal de ECR preparado'
+
+    docker push $imageUri
+    if ($LASTEXITCODE -ne 0) { throw 'Falló la publicación de la imagen.' }
+} finally {
+    if ($null -eq $previousDockerConfig) {
+        Remove-Item Env:DOCKER_CONFIG -ErrorAction SilentlyContinue
+    } else {
+        $env:DOCKER_CONFIG = $previousDockerConfig
+    }
+    Remove-Item -LiteralPath $temporaryDockerConfig -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 Write-Host 'Esperando a que EC2 aparezca en AWS Systems Manager'
 $online = $false
