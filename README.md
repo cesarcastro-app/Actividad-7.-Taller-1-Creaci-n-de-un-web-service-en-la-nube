@@ -17,6 +17,7 @@ Implementación académica del taller **Despliegue de Servicios de Red** para la
 | `infra/` | VPC, ECR, IAM, EC2, SSM y Elastic IP en Terraform. |
 | `scripts/deploy.ps1` | Construcción, publicación y despliegue automatizado. |
 | `scripts/validate.ps1` | Pruebas y validaciones locales. |
+| `scripts/stop.ps1` | Detención y verificación de EC2 sin eliminar infraestructura. |
 | `scripts/destroy.ps1` | Eliminación controlada de los recursos AWS. |
 | `docs/ARQUITECTURA.md` | Diseño, flujo y decisiones técnicas. |
 | `docs/GUIA_DESPLIEGUE.md` | Procedimiento completo de despliegue y operación. |

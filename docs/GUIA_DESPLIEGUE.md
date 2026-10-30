@@ -135,7 +135,17 @@ Modifique y pruebe el código. Publique siempre una etiqueta nueva:
 
 El contenedor tiene `--restart unless-stopped`, por lo que reinicia con Docker o con la instancia.
 
-## 7. Eliminar recursos y detener costos
+## 7. Detener EC2 sin eliminar la infraestructura
+
+Para suspender el cómputo y verificar que la instancia llegó al estado `stopped`:
+
+```powershell
+.\scripts\stop.ps1
+```
+
+El script puede ejecutarse varias veces sin error. Conserva ECR, VPC, Elastic IP, el volumen EBS y el estado de Terraform. Estos recursos pueden seguir generando cargos aunque EC2 esté detenida.
+
+## 8. Eliminar recursos y detener costos
 
 ECR, EC2, volúmenes y la Elastic IP pueden generar cargos. Cuando termine la actividad:
 
