@@ -4,15 +4,17 @@ param([switch]$SkipDocker)
 
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
+$infraDirectory = (Resolve-Path -LiteralPath (Join-Path $root 'infra')).Path
+$terraformChdir = "-chdir=$infraDirectory"
 
 python -m pytest (Join-Path $root 'tests')
 if ($LASTEXITCODE -ne 0) { throw 'Las pruebas de Python fallaron.' }
 
 if (Get-Command terraform -ErrorAction SilentlyContinue) {
-    terraform -chdir=(Join-Path $root 'infra') fmt -check
+    terraform $terraformChdir fmt -check
     if ($LASTEXITCODE -ne 0) { throw 'terraform fmt encontró diferencias.' }
-    terraform -chdir=(Join-Path $root 'infra') init -backend=false
-    terraform -chdir=(Join-Path $root 'infra') validate
+    terraform $terraformChdir init -backend=false
+    terraform $terraformChdir validate
     if ($LASTEXITCODE -ne 0) { throw 'terraform validate falló.' }
 } else {
     Write-Warning 'Terraform no está instalado; se omite su validación.'

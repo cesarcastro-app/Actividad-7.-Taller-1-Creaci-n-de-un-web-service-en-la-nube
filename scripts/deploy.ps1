@@ -23,9 +23,12 @@ if ($ImageTag -notmatch '^[A-Za-z0-9_.-]{1,128}$') {
     throw 'ImageTag contiene caracteres no admitidos por Docker/ECR.'
 }
 
-$repository = terraform -chdir=$InfraDirectory output -raw ecr_repository_url
-$instanceId = terraform -chdir=$InfraDirectory output -raw instance_id
-$region = terraform -chdir=$InfraDirectory output -raw aws_region
+$resolvedInfraDirectory = (Resolve-Path -LiteralPath $InfraDirectory).Path
+$terraformChdir = "-chdir=$resolvedInfraDirectory"
+
+$repository = terraform $terraformChdir output -raw ecr_repository_url
+$instanceId = terraform $terraformChdir output -raw instance_id
+$region = terraform $terraformChdir output -raw aws_region
 if ($LASTEXITCODE -ne 0) { throw 'No fue posible leer las salidas de Terraform.' }
 
 $registry = $repository.Split('/')[0]
@@ -98,5 +101,5 @@ try {
     Remove-Item -LiteralPath $requestFile -Force -ErrorAction SilentlyContinue
 }
 
-$applicationUrl = terraform -chdir=$InfraDirectory output -raw application_url
+$applicationUrl = terraform $terraformChdir output -raw application_url
 Write-Host "Despliegue completado: $applicationUrl"
