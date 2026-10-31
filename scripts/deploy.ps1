@@ -27,10 +27,19 @@ if ($ImageTag -notmatch '^[A-Za-z0-9_.-]{1,128}$') {
 $resolvedInfraDirectory = (Resolve-Path -LiteralPath $InfraDirectory).Path
 $terraformChdir = "-chdir=$resolvedInfraDirectory"
 
-$repository = terraform $terraformChdir output -raw ecr_repository_url
-$instanceId = terraform $terraformChdir output -raw instance_id
-$region = terraform $terraformChdir output -raw aws_region
+$terraformOutputsJson = terraform $terraformChdir output -json
 if ($LASTEXITCODE -ne 0) { throw 'No fue posible leer las salidas de Terraform.' }
+$terraformOutputs = $terraformOutputsJson | ConvertFrom-Json
+if (
+    -not $terraformOutputs.ecr_repository_url.value -or
+    -not $terraformOutputs.instance_id.value -or
+    -not $terraformOutputs.aws_region.value
+) {
+    throw 'Terraform no registra infraestructura activa. Ejecute terraform plan y apply antes de desplegar.'
+}
+$repository = $terraformOutputs.ecr_repository_url.value
+$instanceId = $terraformOutputs.instance_id.value
+$region = $terraformOutputs.aws_region.value
 
 $registry = $repository.Split('/')[0]
 $imageUri = "${repository}:${ImageTag}"
@@ -143,5 +152,5 @@ try {
     Remove-Item -LiteralPath $requestFile -Force -ErrorAction SilentlyContinue
 }
 
-$applicationUrl = terraform $terraformChdir output -raw application_url
+$applicationUrl = $terraformOutputs.application_url.value
 Write-Host "Despliegue completado: $applicationUrl"

@@ -74,6 +74,13 @@ Ejecute desde la raíz del proyecto:
 .\scripts\deploy.ps1
 ```
 
+El script requiere que `terraform apply` haya creado la infraestructura y que el estado conserve sus salidas. Si anteriormente ejecutó `terraform destroy`, primero vuelva a generar y aplicar un plan:
+
+```powershell
+terraform -chdir=infra plan -out=tfplan
+terraform -chdir=infra apply tfplan
+```
+
 El script genera una etiqueta UTC, construye la imagen, inicia sesión en ECR mediante un token temporal, publica la imagen, espera a SSM y actualiza el contenedor. Para una versión explícita:
 
 ```powershell
